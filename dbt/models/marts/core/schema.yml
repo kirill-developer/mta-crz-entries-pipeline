@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: fact_traffic
+    description: "Main fact table containing traffic entries data for dashboard visualization"
+    columns:
+      - name: toll_date
+        description: "Date of the traffic entry"
+        tests:
+          - not_null
+      - name: hour
+        description: "Hour of the day (0-23)"
+        tests:
+          - not_null
+      - name: vehicle_class
+        description: "Type of vehicle"
+        tests:
+          - not_null
+      - name: detection_group
+        description: "Group of detection points"
+      - name: detection_region
+        description: "Specific entry point region"
+        tests:
+          - not_null
+      - name: entries
+        description: "Number of vehicle entries"
+        tests:
+          - not_null
+      - name: excluded_entries
+        description: "Number of exempt entries"
+        tests:
+          - not_null
+
+  - name: dim_locations
+    description: "Dimension table for entry point locations"
+    columns:
+      - name: detection_region
+        description: "Unique identifier for the entry point"
+        tests:
+          - unique
+          - not_null
+      - name: borough
+        description: "Borough or major area"
+      - name: facility_type
+        description: "Type of facility (Bridge, Tunnel, CBD, etc.)"
+      - name: full_name
+        description: "Full name of the entry point"
+        tests:
+          - not_null
+
+  - name: dim_time
+    description: "Time dimension table"
+    columns:
+      - name: toll_date
+        description: "Calendar date"
+        tests:
+          - unique
+          - not_null
+      - name: day_of_week_num
+        description: "Day of week number (1-7)"
+      - name: day_of_week_name
+        description: "Name of the day (Monday-Sunday)"
+      - name: month
+        description: "Month number (1-12)"
+      - name: quarter
+        description: "Quarter number (1-4)"
+      - name: year
+        description: "Year" 

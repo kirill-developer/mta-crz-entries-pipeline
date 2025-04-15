@@ -1,0 +1,78 @@
+# Sensitive files
+.env
+*.pem
+*.key
+*.crt
+credentials.json
+service-account.json
+**/keys/
+**/*credentials*
+**/*secret*
+config.toml
+secrets.toml
+
+# But allow example files
+!*.example
+!*.sample
+
+# Configuration files
+**/profiles.yml
+terraform.tfvars
+.terraform.lock.hcl
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate.*
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.python-version
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+logs/
+.dlt/
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate.*
+
+# Airflow
+airflow.cfg
+airflow.db
+airflow-webserver.pid
+webserver_config.py
+standalone_admin_password.txt
+logs/
+airflow.db
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+dbt/profiles.yml
+
+# Local development
+*.log
+.env.local
+.env.*.local
+node_modules/

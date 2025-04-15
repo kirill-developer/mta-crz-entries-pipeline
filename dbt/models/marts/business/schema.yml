@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: kpi_congestion
+    description: "Key performance indicators for congestion analysis"
+    columns:
+      - name: toll_date
+        description: "Date of measurement"
+        tests:
+          - not_null
+      - name: detection_region
+        description: "Entry point region"
+        tests:
+          - not_null
+      - name: severity_level
+        description: "Traffic severity classification"
+
+  - name: dashboard_traffic
+    description: "Aggregated traffic data for dashboard visualization"
+    columns:
+      - name: toll_date
+        description: "The date of the traffic data"
+        tests:
+          - not_null
+      - name: peak_hour
+        description: "The peak hour of traffic (0-23)"
+      - name: vehicle_class
+        description: "The type of vehicle"
+        tests:
+          - not_null
+      - name: detection_region
+        description: "The entry point region"
+        tests:
+          - not_null
+      - name: total_entries
+        description: "Number of entries"
+        tests:
+          - not_null
+      - name: total_excluded
+        description: "Number of exempt entries"
+      - name: borough
+        description: "The borough where the traffic was detected"
+      - name: location_name
+        description: "Full name of the entry point"

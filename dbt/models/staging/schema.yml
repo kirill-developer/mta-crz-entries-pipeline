@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_nyc_crz_entries
+    description: "Cleaned raw data from congestion pricing system"
+    columns:
+      - name: toll_date
+        description: "Date of the traffic entry"
+        tests:
+          - not_null
+      - name: vehicle_class
+        description: "Type of vehicle"
+        tests:
+          - not_null
+      - name: detection_group
+        description: "Group of detection points"
+      - name: detection_region
+        description: "Specific entry point region"
+      - name: crz_entries
+        description: "Number of vehicle entries"
+      - name: excluded_roadway_entries
+        description: "Number of exempt entries"

@@ -1,0 +1,30 @@
+name: 'nyctraffic'
+version: '1.0.0'
+config-version: 2
+
+profile: 'nyctraffic'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+models:
+  nyctraffic:
+    staging:
+      materialized: view
+      schema: nyc_traffic
+    marts:
+      core:
+        materialized: table
+        schema: nyc_traffic
+      business:
+        materialized: table
+        schema: nyc_traffic_dashboard

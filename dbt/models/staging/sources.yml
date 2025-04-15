@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: raw
+    database: nyctrafficanalysis
+    schema: nyc_traffic
+    tables:
+      - name: congestion_pricing_entries
+        description: "Raw congestion pricing entries data from MTA" 

@@ -1,0 +1,16 @@
+# GCP Settings
+project_id         = "your-project-id"
+region             = "us-central1"
+zone               = "us-central1-a"
+
+# BigQuery
+dataset_id         = "nyc_traffic"
+dataset_location   = "US"
+
+# GCS
+bucket_name        = "your-bucket-name"
+storage_class      = "STANDARD"
+
+# Airflow
+airflow_cluster_name = "nyc-traffic-airflow"
+machine_type        = "n1-standard-2" 

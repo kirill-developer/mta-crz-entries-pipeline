@@ -1,0 +1,10 @@
+dlt[filesystem]>=0.4.0
+pyarrow>=19.0.1
+requests>=2.31.0
+python-dotenv>=1.0.0
+pandas==2.2.3
+numpy==1.26.4
+fsspec==2024.2.0
+google-cloud-storage==2.14.0
+apache-airflow-providers-google
+dbt-bigquery

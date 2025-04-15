@@ -1,0 +1,26 @@
+# DLT Pipeline Configuration Example
+
+[pipeline]
+name = "nyc_crz_entries_daily"
+destination = "filesystem"
+dataset_name = "nyc_crz_data_daily"
+
+[source]
+api_base_url = "https://data.ny.gov/api/odata/v4/t6yz-b64h"
+select_fields = [
+    "toll_date",
+    "toll_hour",
+    "vehicle_class",
+    "detection_group",
+    "detection_region",
+    "crz_entries",
+    "excluded_roadway_entries"
+]
+
+[destination.filesystem]
+bucket_url = "gs://your-bucket-name"
+file_format = "parquet"
+
+[runtime]
+log_level = "INFO"
+max_parallel_operations = 4 
