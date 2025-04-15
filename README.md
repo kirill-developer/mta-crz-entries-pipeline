@@ -1,26 +1,34 @@
-# NYC Traffic Congestion Pricing Analysis
+# MTA Congestion Relief Zone Entries Pipeline
+
 
 ## Overview
-This project analyzes NYC's Congestion Pricing traffic data using dbt and BigQuery, visualized through Looker Studio. It processes MTA's Congestion Relief Zone Vehicle Entries data to provide insights into traffic patterns, vehicle distributions, and exemption rates. The data is processed in daily batches, providing next-day insights for traffic patterns.
+This project implements an end-to-end data pipeline for processing and analyzing the Metropolitan Transportation Authority (MTA)'s Congestion Relief Zone (CRZ) Vehicle Entries data. The MTA is New York City's primary public transportation authority, responsible for managing the city's subway, bus, and commuter rail systems, as well as implementing the new Congestion Pricing program in Manhattan.
+
+Using modern data engineering practices, this pipeline transforms raw vehicle detection data from MTA's tolling system into actionable insights through dbt transformations and Looker Studio visualizations. The project specifically focuses on the Central Business District Tolling Program, which aims to reduce traffic congestion in Manhattan while generating revenue for public transportation improvements.
+
+## Quick Links
+- **Data Pipeline Repository**: [GitHub - mta-crz-entries-pipeline](https://github.com/kirill-developer/mta-crz-entries-pipeline)
+- **Interactive Dashboard**: [Looker Studio - MTA CRZ Analysis](https://lookerstudio.google.com/s/tJcseHzgIdE)
+- **Official Data Source**: [NY Open Data - MTA CRZ Vehicle Entries](https://data.ny.gov/Transportation/MTA-Congestion-Relief-Zone-Vehicle-Entries-Beginni/t6yz-b64h/about_data)
 
 ### Problem Statement
-New York City is implementing a first-in-the-nation congestion pricing program to reduce traffic and raise revenue for public transit improvements. This project addresses several key challenges:
+The MTA's Central Business District Tolling Program, launching in 2025, requires comprehensive traffic monitoring and analysis. This project creates an automated pipeline to process data from the 110 detection points around Manhattan's CRZ (south of 60th Street), enabling:
 
-1. **Traffic Monitoring**: Track and analyze vehicle entries into Manhattan's Central Business District (CBD) south of 60th Street
-2. **Vehicle Classification**: Monitor distribution of different vehicle types (cars, trucks, buses, etc.) entering the zone
-3. **Exemption Analysis**: Track the proportion of vehicles that may be exempt from congestion pricing
-4. **Peak Hour Identification**: Identify peak traffic periods to inform pricing strategies
-5. **Entry Point Analysis**: Analyze which entry points experience the highest traffic volumes
+1. **Traffic Monitoring**: Process and analyze vehicle entries through tolling detection points
+2. **Vehicle Classification**: Track entries by vehicle category (cars, trucks, TLC vehicles, etc.)
+3. **Exemption Analysis**: Monitor exempt vs non-exempt roadway usage
+4. **Peak Hour Analysis**: Process time-based entry patterns (peak vs off-peak)
+5. **Entry Point Distribution**: Analyze traffic flow across different detection groups
 
 ### Data Source
-The data comes from MTA's Congestion Relief Zone Vehicle Entries dataset, which includes:
-- Daily vehicle entries by vehicle class
-- Entry point locations and boroughs
-- Temporal data (date and hour of entry)
-- Exempt vs non-exempt vehicle counts
-- Coverage of all major entry points into Manhattan's CBD
+The project uses the official MTA Congestion Relief Zone Vehicle Entries dataset, which provides:
+- Vehicle detections from 110 monitoring points
+- Entry classifications by vehicle type and location
+- Temporal data in 10-minute intervals
+- Distinction between CRZ and Excluded Roadway trips
+- E-ZPass and license plate detection data
 
-The data is updated daily and made available through MTA's OData v4 API, providing a reliable source for near real-time traffic analysis.
+Data is accessed through MTA's OData v4 API, enabling batch processing of traffic patterns.
 
 ## Architecture
 ```mermaid
@@ -97,7 +105,7 @@ terraform apply   # Apply the configuration
 ## Project Sharing & Setup
 
 ### GitHub Repository
-The project code is available at: `https://github.com/[your-username]/NYCTraffic_new`
+The project code is available at: `https://github.com/kirill-developer/mta-crz-entries-pipeline`
 
 ### Required Access & Credentials
 1. **Google Cloud**:
@@ -133,8 +141,8 @@ To use this dashboard with your own data:
 ### Local Development Setup
 1. Clone the repository:
 ```bash
-git clone https://github.com/[your-username]/NYCTraffic_new.git
-cd NYCTraffic_new
+git clone https://github.com/kirill-developer/mta-crz-entries-pipeline.git
+cd mta-crz-entries-pipeline
 ```
 
 2. Set up configuration files:
@@ -186,16 +194,16 @@ All dbt commands should be run through Docker. Here are the main commands:
 
 ```bash
 # Run dbt models
-docker exec nyctraffic_new_airflow-webserver_1 dbt run --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+docker exec mta_crz_entries_airflow-webserver_1 dbt run --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
 
 # Test dbt models
-docker exec nyctraffic_new_airflow-webserver_1 dbt test --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+docker exec mta_crz_entries_airflow-webserver_1 dbt test --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
 
 # Generate dbt docs
-docker exec nyctraffic_new_airflow-webserver_1 dbt docs generate --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+docker exec mta_crz_entries_airflow-webserver_1 dbt docs generate --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
 
 # View model dependencies
-docker exec nyctraffic_new_airflow-webserver_1 dbt list --select fact_traffic+ --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+docker exec mta_crz_entries_airflow-webserver_1 dbt list --select fact_traffic+ --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
 ```
 
 ### Project Structure
