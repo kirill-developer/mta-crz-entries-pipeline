@@ -45,7 +45,13 @@ The pipeline follows a modern ELT (Extract, Load, Transform) approach:
 The entire pipeline is orchestrated using Apache Airflow and containerized with Docker, running on Google Cloud Platform.
 
 ## Data Processing
-- **Batch Processing**: Daily ETL pipeline
+
+### Batch Processing
+Daily ELT pipeline that:
+1. Extracts data from MTA's Open Data API
+2. Loads it into Google BigQuery
+3. Transforms using dbt models for analysis
+
 - **Processing Window**: T+1 (next day analysis)
 - **Update Frequency**: Data refreshed daily at 2 AM EST
 - **Historical Load**: Full historical data loaded on initial setup
