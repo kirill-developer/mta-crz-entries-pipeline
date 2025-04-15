@@ -8,7 +8,7 @@ Using modern data engineering practices, this pipeline transforms raw vehicle de
 
 ## Quick Links
 - **Data Pipeline Repository**: [GitHub - mta-crz-entries-pipeline](https://github.com/kirill-developer/mta-crz-entries-pipeline)
-- **Interactive Dashboard**: [Looker Studio - MTA CRZ Analysis](https://lookerstudio.google.com/s/tJcseHzgIdE)
+- **Interactive Dashboard**: [Looker Studio - MTA CRZ Analysis](https://lookerstudio.google.com/reporting/889bfc1c-d8b1-4a6f-847f-66feecc5334b/page/BMzGF?s=tJcseHzgIdE)
 - **Official Data Source**: [NY Open Data - MTA CRZ Vehicle Entries](https://data.ny.gov/Transportation/MTA-Congestion-Relief-Zone-Vehicle-Entries-Beginni/t6yz-b64h/about_data)
 
 ### Problem Statement
@@ -31,49 +31,18 @@ The project uses the official MTA Congestion Relief Zone Vehicle Entries dataset
 Data is accessed through MTA's OData v4 API, enabling batch processing of traffic patterns.
 
 ## Architecture
-```mermaid
-flowchart LR
-    %% Nodes with icons/logos
-    MTA["`🌐 MTA API`"]
-    GCS["`☁️ Google Cloud Storage`"]
-    BQ_RAW["`💾 BigQuery Raw`"]
-    BQ_DWH["`🏭 BigQuery DWH`"]
-    MARTS["`📊 Marts`"]
-    LOOKER["`📈 Looker Studio`"]
-    AIRFLOW["`🔄 Airflow`"]
+![MTA CRZ Data Pipeline Architecture](docs/images/architecture.png)
 
-    subgraph Ingestion
-        direction TB
-        MTA --> |dlt extract| GCS
-        GCS --> |dlt load| BQ_RAW
-    end
+The pipeline follows a modern ELT (Extract, Load, Transform) approach:
 
-    subgraph Processing
-        direction TB
-        BQ_RAW --> |dbt transform| BQ_DWH
-        BQ_DWH --> |dbt models| MARTS
-    end
+1. **Extract**: Data is sourced from the MTA Open Data API using dlt (Data Load Tool)
+2. **Load**: Raw data is loaded into Google BigQuery using Parquet format for efficient storage
+3. **Transform**: Data transformations are handled by dbt, creating:
+   - Staging models for initial data cleaning
+   - Core models for business logic
+   - Mart models for specific use cases and reporting
 
-    subgraph Visualization
-        MARTS --> |connect| LOOKER
-    end
-
-    subgraph Orchestration
-        AIRFLOW --> |schedule| Ingestion
-        AIRFLOW --> |trigger| Processing
-    end
-
-    %% Styling
-    classDef cloud fill:#f5f5f5,stroke:#333,stroke-width:2px
-    classDef process fill:#e1f5fe,stroke:#333,stroke-width:2px
-    classDef viz fill:#f3e5f5,stroke:#333,stroke-width:2px
-    classDef orch fill:#fff3e0,stroke:#333,stroke-width:2px
-    
-    class GCS,BQ_RAW,BQ_DWH cloud
-    class MARTS process
-    class LOOKER viz
-    class AIRFLOW orch
-```
+The entire pipeline is orchestrated using Apache Airflow and containerized with Docker, running on Google Cloud Platform.
 
 ## Data Processing
 - **Batch Processing**: Daily ETL pipeline
