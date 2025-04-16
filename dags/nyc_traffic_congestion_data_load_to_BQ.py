@@ -1,8 +1,25 @@
+"""
+Daily BigQuery load DAG for NYC Traffic Congestion Data.
+
+This DAG loads daily congestion pricing data from GCS to BigQuery.
+It follows the same data pipeline pattern as the daily update DAG, processing data from the previous day to ensure:
+1. Data completeness - we want to ensure we have complete data for a day before processing it
+2. Data latency - there might be a delay in data availability from the source
+3. Time zone considerations - different time zones might affect when data is considered "complete" for a day
+
+The DAG runs at 7:10 UTC (3:10 AM ET) daily, 10 minutes after the daily update DAG.
+For example, when running on April 16th, it will attempt to load data for April 14th:
+- execution_date = April 15th (the day before the DAG runs)
+- target_date = April 14th (one day before execution_date)
+
+This ensures we have complete data for the day we're processing and gives the daily update DAG time to complete.
+"""
+
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 import json
 import os
@@ -25,9 +42,20 @@ default_args = {
     'max_active_runs': 1,
 }
 
-def load_gcs_to_bigquery(full_refresh: bool = False):
+def load_gcs_to_bigquery(**context):
     """Load data from GCS to BigQuery"""
     try:
+        # Get the execution date from Airflow context
+        execution_date = context.get('execution_date', datetime.now() - timedelta(days=1))
+        if isinstance(execution_date, str):
+            execution_date = datetime.strptime(execution_date, '%Y-%m-%d').date()
+        elif isinstance(execution_date, datetime):
+            execution_date = execution_date.date()
+        
+        # Calculate target date - we want the day before the execution date
+        target_date = execution_date - timedelta(days=1)
+        print(f"Loading data for date: {target_date}")
+        
         # Load credentials
         if not os.path.exists(CREDENTIALS_PATH):
             raise Exception(f"Credentials file not found at {CREDENTIALS_PATH}")
@@ -46,18 +74,26 @@ def load_gcs_to_bigquery(full_refresh: bool = False):
             project=creds_data['project_id']
         )
 
+        # Determine which GCS path to use
+        gcs_uri = f"{GCS_BUCKET}/{GCS_DAILY_PATH}"
+        
+        # Check if there are any files to load
+        storage_client = storage.Client(credentials=credentials, project=creds_data['project_id'])
+        bucket = storage_client.bucket(GCS_BUCKET.replace('gs://', ''))
+        blobs = list(bucket.list_blobs(prefix=GCS_DAILY_PATH))
+        
+        if not blobs:
+            print(f"No new data files found in {gcs_uri}. Skipping load.")
+            return
+
         # Configure the load job
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE if full_refresh
-                              else bigquery.WriteDisposition.WRITE_APPEND,
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
         )
 
         # Construct the full table ID
         table_id = f"{creds_data['project_id']}.{DATASET_NAME}.{TABLE_NAME}"
-
-        # Determine which GCS path to use
-        gcs_uri = f"{GCS_BUCKET}/{GCS_PATH}" if full_refresh else f"{GCS_BUCKET}/{GCS_DAILY_PATH}"
 
         # Execute the load job
         load_job = client.load_table_from_uri(
@@ -96,13 +132,13 @@ with DAG(
 with DAG(
         'nyc_crz_entries_daily_load_to_bq',
         default_args=default_args,
-        schedule_interval='0 3 * * *',  # Run at 3 AM daily, after the daily update DAG
+        schedule_interval='0 8 * * *',  # Run daily at 8:00 AM UTC (4:00 AM ET)
         catchup=False,
         tags=['nyc_traffic'],
-) as daily_dag:
-    daily_load_task = PythonOperator(
+) as dag:
+    load_task = PythonOperator(
         task_id='daily_load_to_bigquery',
         python_callable=load_gcs_to_bigquery,
-        op_kwargs={'full_refresh': False},
+        provide_context=True,
         execution_timeout=timedelta(hours=2),
     )

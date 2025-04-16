@@ -53,9 +53,34 @@ Daily ELT pipeline that:
 3. Transforms using dbt models for analysis
 
 - **Processing Window**: T+1 (next day analysis)
-- **Update Frequency**: Data refreshed daily at 2 AM EST
+- **Update Frequency**: Data refreshed daily at 3 AM EST (7 AM UTC)
 - **Historical Load**: Full historical data loaded on initial setup
 - **Incremental Updates**: Daily delta loads for new data
+
+### DAG Schedule
+The pipeline consists of two DAGs that run in sequence:
+
+1. **Daily Update DAG** (`nyc_crz_entries_daily_update`):
+   - Runs at 7:00 AM UTC (3:00 AM ET)
+   - Fetches data from the MTA API
+   - Loads it to Google Cloud Storage
+   - Follows a T+1 pattern to ensure data completeness
+
+2. **BigQuery Load DAG** (`nyc_crz_entries_daily_load_to_bq`):
+   - Runs at 8:00 AM UTC (4:00 AM ET)
+   - Loads data from GCS to BigQuery
+   - Runs after the daily update DAG to ensure data availability
+
+### Data Pipeline Pattern
+The pipeline follows a common data engineering pattern where we process data from the previous day to ensure:
+1. **Data Completeness**: We want to ensure we have complete data for a day before processing it
+2. **Data Latency**: There might be a delay in data availability from the source
+3. **Time Zone Considerations**: Different time zones might affect when data is considered "complete" for a day
+
+For example, when running on April 16th:
+- The daily update DAG will attempt to fetch data for April 14th
+- The BigQuery load DAG will load that data into BigQuery
+- This ensures we have complete data for the day we're processing
 
 ## Infrastructure
 The project infrastructure is managed with Terraform and is already set up in GCP. The configuration includes:

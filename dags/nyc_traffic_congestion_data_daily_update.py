@@ -1,3 +1,20 @@
+"""
+Daily update DAG for NYC Traffic Congestion Data.
+
+This DAG fetches daily congestion pricing data from the NYC Open Data API and loads it to GCS.
+It follows a common data pipeline pattern where we process data from the previous day to ensure:
+1. Data completeness - we want to ensure we have complete data for a day before processing it
+2. Data latency - there might be a delay in data availability from the source
+3. Time zone considerations - different time zones might affect when data is considered "complete" for a day
+
+The DAG runs at 7:00 UTC (3:00 AM ET) daily to fetch data from the previous day.
+For example, when running on April 16th, it will attempt to fetch data for April 14th:
+- execution_date = April 15th (the day before the DAG runs)
+- target_date = April 14th (one day before execution_date)
+
+This ensures we have complete data for the day we're processing.
+"""
+
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -67,62 +84,109 @@ def ensure_dlt_config() -> bool:
         raise AirflowException(f"Configuration failed: {str(e)}")
 
 
-def load_daily_updates():
-    if not ensure_dlt_config():
-        raise AirflowException("Configuration failed")
-
-    with open("/opt/airflow/keys/my-creds.json") as f:
-        creds = json.load(f)
-
-    @dlt.resource(
-        table_name="nyc_crz_entries_daily",
-        write_disposition="append",
-    )
-    def crz_entries_daily_data():
-        extractor = NYCRZEntriesExtractor()
-
-        # Calculate date range for daily updates
-        end_date = datetime.utcnow().date()
-        start_date = end_date - timedelta(days=DAYS_TO_FETCH)
-
-        # Build URL with date filter
-        base_url = (
-            f"{API_BASE_URL}?"
-            f"$select={SELECT_FIELDS}&"
-            f"$filter=toll_date ge {start_date.isoformat()} and toll_date le {end_date.isoformat()}&"
-            f"$orderby=toll_date,toll_hour"
-        )
-
-        url = base_url
-        print(f"Fetching daily updates for date range: {start_date} to {end_date}")
-
-        try:
-            while url:
-                batch, next_url = extractor.fetch_batch(url)
-                if not batch:
-                    print("No new records found for today")
-                    break
-
-                print(f"Fetched {len(batch)} records for daily update")
-                yield batch
-
-                url = next_url
-                if url:
-                    time.sleep(1)  # Rate limiting
-
-        except Exception as e:
-            print(f"Daily extraction failed: {str(e)}")
-            raise
-
+def get_latest_available_date():
+    """Get the latest date for which data is available in the API"""
     try:
+        # Make a simple request to get the most recent data
+        base_url = "https://data.ny.gov/api/odata/v4/t6yz-b64h"
+        url = f"{base_url}?$select=toll_date&$orderby=toll_date desc&$top=1"
+        
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        
+        if data.get('value') and len(data['value']) > 0:
+            latest_date_str = data['value'][0]['toll_date']
+            # Convert ISO date string to Date object
+            latest_date = datetime.strptime(latest_date_str.split('T')[0], '%Y-%m-%d').date()
+            print(f"Latest available data date in API: {latest_date}")
+            return latest_date
+        else:
+            print("No data available in the API")
+            return None
+    except Exception as e:
+        print(f"Error checking latest available date: {str(e)}")
+        return None
+
+
+def crz_entries_daily_data(**context):
+    """Generator that yields daily CRZ entries data"""
+    # Get the latest available date from the API
+    latest_date = get_latest_available_date()
+    if not latest_date:
+        print("No data available to fetch")
+        return
+    
+    # Get the execution date from Airflow context
+    execution_date = context.get('execution_date', datetime.now() - timedelta(days=1))
+    if isinstance(execution_date, str):
+        execution_date = datetime.strptime(execution_date, '%Y-%m-%d').date()
+    elif isinstance(execution_date, datetime):
+        execution_date = execution_date.date()
+    
+    # Calculate target date - we want the day before the execution date
+    target_date = execution_date - timedelta(days=1)
+    
+    # If target date is in the future or after the latest available date, skip
+    if target_date > datetime.now().date():
+        print(f"Skipping fetch for {target_date} - future date")
+        return
+    
+    if target_date > latest_date:
+        print(f"Skipping fetch for {target_date} - data not yet available in API (latest available: {latest_date})")
+        return
+    
+    print(f"Fetching data for date: {target_date}")
+    
+    # Construct the API URL with date filter
+    base_url = "https://data.ny.gov/api/odata/v4/t6yz-b64h"
+    select_fields = "toll_date,toll_hour,toll_10_minute_block,minute_of_hour,hour_of_day,day_of_week_int,day_of_week,toll_week,time_period,vehicle_class,detection_group,detection_region,crz_entries,excluded_roadway_entries"
+    filter_query = f"toll_date eq {target_date}"  # Only get data for the specific date
+    order_by = "toll_date,toll_hour"
+    
+    url = f"{base_url}?$select={select_fields}&$filter={filter_query}&$orderby={order_by}"
+    print(f"Fetching URL: {url}")
+    
+    # Create extractor instance
+    extractor = NYCRZEntriesExtractor()
+    
+    try:
+        # Fetch and yield data
+        while url:
+            batch, next_url = extractor.fetch_batch(url)
+            if batch:
+                print(f"Fetched {len(batch)} records for date {target_date}")
+                yield batch
+            else:
+                print(f"No new records found for date {target_date}")
+            url = next_url
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400:
+            print(f"No data available for date {target_date} - API returned 400 Bad Request")
+            return
+        raise
+
+def load_daily_updates(**context):
+    """Load daily updates from the API to GCS"""
+    try:
+        # Ensure DLT configuration is set up
+        if not ensure_dlt_config():
+            raise AirflowException("Configuration failed")
+
+        # Load credentials
+        with open("/opt/airflow/keys/my-creds.json") as f:
+            creds = json.load(f)
+
+        # Create DLT pipeline
         pipeline = dlt.pipeline(
             pipeline_name="nyc_crz_entries_daily",
             destination="filesystem",
             dataset_name="nyc_crz_data_daily",
         )
 
+        # Run the pipeline with the context
         load_info = pipeline.run(
-            crz_entries_daily_data(),
+            crz_entries_daily_data(**context),
             loader_file_format="parquet",
             credentials={
                 "project_id": creds["project_id"],
@@ -152,12 +216,13 @@ default_args = {
 with DAG(
         'nyc_crz_entries_daily_update',
         default_args=default_args,
-        schedule_interval='0 2 * * *',  # Run daily at 2 AM
+        schedule_interval='0 7 * * *',  # Run daily at 7:00 AM UTC (3:00 AM ET)
         catchup=False,
         tags=['nyc_traffic'],
 ) as dag:
     load_task = PythonOperator(
         task_id='load_daily_updates',
         python_callable=load_daily_updates,
+        provide_context=True,  # Ensure context is passed to the function
         execution_timeout=timedelta(hours=2),
     )
