@@ -21,6 +21,8 @@ BATCH_SIZE = 100000
 MAX_RUNTIME = timedelta(hours=12)
 API_BASE_URL = "https://data.ny.gov/api/odata/v4/t6yz-b64h"
 SELECT_FIELDS = "toll_date,toll_hour,toll_10_minute_block,minute_of_hour,hour_of_day,day_of_week_int,day_of_week,toll_week,time_period,vehicle_class,detection_group,detection_region,crz_entries,excluded_roadway_entries"
+START_DATE = "2025-01-01"
+END_DATE = "2025-04-12"
 
 # Ensure checkpoint directory exists
 Path(CHECKPOINT_DIR).mkdir(parents=True, exist_ok=True)
@@ -96,10 +98,11 @@ def load_full_dataset():
         extractor = NYCRZEntriesExtractor()
         last_skip = load_checkpoint() or 0
 
-        # Build initial URL with $skip parameter for pagination
+        # Build initial URL with date filter and pagination
         base_url = (
             f"{API_BASE_URL}?"
             f"$select={SELECT_FIELDS}&"
+            f"$filter=toll_date gt '{START_DATE}'&"
             f"$orderby=toll_date,toll_hour&"
             f"$top={BATCH_SIZE}&"
             f"$skip={last_skip}"
@@ -107,10 +110,12 @@ def load_full_dataset():
 
         url = base_url
         print(f"Starting extraction from skip position: {last_skip}")
+        print(f"Date range: {START_DATE} to {END_DATE}")
 
         start_time = datetime.utcnow()
         total_records = 0
         batch_count = 0
+        seen_dates = set()
 
         try:
             while url:
@@ -125,14 +130,26 @@ def load_full_dataset():
                     save_checkpoint(0)  # Reset checkpoint
                     break
 
+                # Filter out records beyond END_DATE
+                batch = [record for record in batch if record['toll_date'].split('T')[0] <= END_DATE]
+                if not batch:
+                    print("No more records within date range")
+                    save_checkpoint(0)  # Reset checkpoint
+                    break
+
                 batch_size = len(batch)
                 total_records += batch_size
                 batch_count += 1
                 last_skip += batch_size
 
+                # Track unique dates to verify completeness
+                for record in batch:
+                    seen_dates.add(record['toll_date'].split('T')[0])
+
                 print(
                     f"Batch {batch_count}: Fetched {batch_size} records | "
-                    f"Total: {total_records} | Current skip: {last_skip}"
+                    f"Total: {total_records} | Current skip: {last_skip} | "
+                    f"Unique dates: {len(seen_dates)}"
                 )
 
                 yield batch
@@ -141,6 +158,12 @@ def load_full_dataset():
                 url = next_url
                 if url:
                     time.sleep(1)  # Rate limiting
+
+            # Verify data completeness
+            print(f"Data completeness check:")
+            print(f"Total records: {total_records}")
+            print(f"Unique dates: {len(seen_dates)}")
+            print(f"Date range covered: {min(seen_dates)} to {max(seen_dates)}")
 
         except Exception as e:
             print(f"Extraction failed...")

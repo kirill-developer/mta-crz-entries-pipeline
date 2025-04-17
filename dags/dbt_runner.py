@@ -4,9 +4,10 @@ from datetime import datetime
 
 with DAG(
     'dbt_transforms',
-    schedule_interval='@daily',
+    schedule_interval='0 9 * * *',  # Run at 9:00 UTC (5:00 AM ET)
     start_date=datetime(2023, 1, 1),
-    catchup=False
+    catchup=False,
+    tags=['nyc_traffic']
 ) as dag:
 
     dbt_deps = BashOperator(

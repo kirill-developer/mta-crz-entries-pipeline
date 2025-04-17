@@ -8,7 +8,7 @@ Using modern data engineering practices, this pipeline transforms raw vehicle de
 
 ## Quick Links
 - **Data Pipeline Repository**: [GitHub - mta-crz-entries-pipeline](https://github.com/kirill-developer/mta-crz-entries-pipeline)
-- **Interactive Dashboard**: [Looker Studio - MTA CRZ Analysis](https://lookerstudio.google.com/reporting/889bfc1c-d8b1-4a6f-847f-66feecc5334b/page/BMzGF?s=tJcseHzgIdE)
+- **Interactive Dashboard**: [Looker Studio - MTA CRZ Analysis](https://lookerstudio.google.com/s/gF6UXDJmAm0)
 - **Official Data Source**: [NY Open Data - MTA CRZ Vehicle Entries](https://data.ny.gov/Transportation/MTA-Congestion-Relief-Zone-Vehicle-Entries-Beginni/t6yz-b64h/about_data)
 
 ### Problem Statement
@@ -58,7 +58,7 @@ Daily ELT pipeline that:
 - **Incremental Updates**: Daily delta loads for new data
 
 ### DAG Schedule
-The pipeline consists of two DAGs that run in sequence:
+The pipeline consists of three DAGs that run in sequence:
 
 1. **Daily Update DAG** (`nyc_crz_entries_daily_update`):
    - Runs at 7:00 AM UTC (3:00 AM ET)
@@ -70,6 +70,13 @@ The pipeline consists of two DAGs that run in sequence:
    - Runs at 8:00 AM UTC (4:00 AM ET)
    - Loads data from GCS to BigQuery
    - Runs after the daily update DAG to ensure data availability
+
+3. **dbt Transforms DAG** (`dbt_transforms`):
+   - Runs at 9:00 AM UTC (5:00 AM ET)
+   - Executes dbt transformations on the loaded data
+   - Creates and updates all analytical models
+   - Runs data quality tests
+   - Generates documentation
 
 ### Data Pipeline Pattern
 The pipeline follows a common data engineering pattern where we process data from the previous day to ensure:
@@ -119,12 +126,12 @@ The project code is available at: `https://github.com/kirill-developer/mta-crz-e
    - No rows limit per request
 
 3. **Looker Studio**:
-   - Access to the template dashboard: [Dashboard Link]
+   - Access to the template dashboard
    - BigQuery connection permissions
 
 ### Dashboard Access
 You can access the NYC Traffic Analysis dashboard here:
-- [View Dashboard](https://lookerstudio.google.com/s/tJcseHzgIdE)
+- [View Dashboard](https://lookerstudio.google.com/s/gF6UXDJmAm0)
 
 The dashboard provides interactive visualizations of:
 - Total traffic entries into the congestion zone
